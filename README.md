@@ -62,7 +62,8 @@ MSCOCO 加分项：
 ```bash
 /mnt/kxh/miniconda3/envs/trl/bin/python scripts/evaluate_retrieval.py \
   --annotations-jsonl datasets/coco/annotations.jsonl \
-  --output-json results/clip_coco_metrics.json
+  --max-images 5000 \
+  --output-json results/clip_coco_5k_metrics.json
 ```
 
 猫狗零样本分类加分项：
