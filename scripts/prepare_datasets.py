@@ -6,6 +6,8 @@ import argparse
 import io
 import json
 import shutil
+import urllib.request
+import zipfile
 from pathlib import Path
 
 from datasets import Dataset, load_dataset
@@ -13,6 +15,8 @@ from PIL import Image
 from tqdm import tqdm
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+COCO_VAL2014_URL = "http://images.cocodataset.org/zips/val2014.zip"
+COCO_ANNOTATIONS_URL = "http://images.cocodataset.org/annotations/annotations_trainval2014.zip"
 
 
 def parse_args() -> argparse.Namespace:
@@ -151,6 +155,46 @@ def write_retrieval_jsonl(
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def download_file(url: str, output_path: Path) -> None:
+    """下载文件到本地路径。
+
+    Args:
+        url: 下载地址。
+        output_path: 输出文件路径。
+    """
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path.exists() and output_path.stat().st_size > 0:
+        return
+    with urllib.request.urlopen(url, timeout=60) as response:
+        total = int(response.headers.get("Content-Length", "0"))
+        with output_path.open("wb") as handle:
+            with tqdm(total=total, unit="B", unit_scale=True, desc=output_path.name) as progress:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    handle.write(chunk)
+                    progress.update(len(chunk))
+
+
+def extract_zip(zip_path: Path, output_dir: Path, marker_path: Path) -> None:
+    """解压 zip 文件。
+
+    Args:
+        zip_path: zip 文件路径。
+        output_dir: 解压目标目录。
+        marker_path: 解压完成标记文件。
+    """
+
+    if marker_path.exists():
+        return
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path) as archive:
+        archive.extractall(output_dir)
+    marker_path.write_text("ok\n", encoding="utf-8")
+
+
 def prepare_flickr30k(root: Path, max_images: int) -> None:
     """下载并导出 Flickr30k 测试集。
 
@@ -171,8 +215,39 @@ def prepare_coco(root: Path, max_images: int) -> None:
         max_images: 最多导出图片数，0 表示全量。
     """
 
-    dataset = load_dataset("detection-datasets/coco", split="val")
-    write_retrieval_jsonl(dataset, root / "coco", "coco", max_images)
+    coco_dir = root / "coco"
+    raw_dir = coco_dir / "raw"
+    download_file(COCO_VAL2014_URL, raw_dir / "val2014.zip")
+    download_file(COCO_ANNOTATIONS_URL, raw_dir / "annotations_trainval2014.zip")
+    extract_zip(raw_dir / "val2014.zip", raw_dir, raw_dir / ".val2014_extracted")
+    extract_zip(
+        raw_dir / "annotations_trainval2014.zip",
+        raw_dir,
+        raw_dir / ".annotations_extracted",
+    )
+
+    annotations_path = raw_dir / "annotations" / "captions_val2014.json"
+    captions_data = json.loads(annotations_path.read_text(encoding="utf-8"))
+    image_id_to_file = {int(image["id"]): image["file_name"] for image in captions_data["images"]}
+    image_id_to_captions: dict[int, list[str]] = {}
+    for annotation in captions_data["annotations"]:
+        image_id = int(annotation["image_id"])
+        image_id_to_captions.setdefault(image_id, []).append(str(annotation["caption"]))
+
+    output_annotations = coco_dir / "annotations.jsonl"
+    output_annotations.parent.mkdir(parents=True, exist_ok=True)
+    image_ids = sorted(image_id_to_captions)
+    if max_images > 0:
+        image_ids = image_ids[:max_images]
+    with output_annotations.open("w", encoding="utf-8") as handle:
+        for image_id in tqdm(image_ids, desc="export coco"):
+            file_name = image_id_to_file[image_id]
+            record = {
+                "image_id": str(image_id),
+                "image_path": str((raw_dir / "val2014" / file_name).resolve()),
+                "captions": image_id_to_captions[image_id],
+            }
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def infer_catdog_label(row: dict[str, object], index: int) -> str:

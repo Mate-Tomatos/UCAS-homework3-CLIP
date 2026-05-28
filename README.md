@@ -27,7 +27,7 @@ git clone https://github.com/OpenAI/CLIP.git CLIP
 
 ## 数据准备
 
-数据集、实验结果和报告不会提交到 Git。默认导出到 `datasets/`：
+数据集、实验结果和报告不会提交到 Git。默认导出到 `datasets/`。其中 Flickr30k 使用 HuggingFace `AnyModal/flickr30k` 的测试集；MSCOCO 使用官方 `val2014.zip` 和 `captions_val2014.json`；猫狗分类使用 HuggingFace `microsoft/cats_vs_dogs`：
 
 ```bash
 PYTHON_BIN=/mnt/kxh/miniconda3/envs/trl/bin/python bash scripts/run_all.sh
