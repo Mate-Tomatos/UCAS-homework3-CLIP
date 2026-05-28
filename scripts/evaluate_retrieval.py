@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import torch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.clip_common import RetrievalItem, encode_images, encode_texts, load_clip, select_device
 

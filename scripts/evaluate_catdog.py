@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import torch
 from PIL import Image
 from tqdm import tqdm
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.clip_common import encode_texts, load_clip, select_device
 
