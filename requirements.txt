@@ -1,0 +1,8 @@
+torch
+transformers
+datasets
+huggingface_hub
+pillow
+numpy
+tqdm
+requests
