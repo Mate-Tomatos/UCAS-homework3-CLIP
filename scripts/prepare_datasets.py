@@ -17,6 +17,16 @@ from tqdm import tqdm
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 COCO_VAL2014_URL = "http://images.cocodataset.org/zips/val2014.zip"
 COCO_ANNOTATIONS_URL = "http://images.cocodataset.org/annotations/annotations_trainval2014.zip"
+FLICKR30K_PARQUET_URL = (
+    "https://hf-mirror.com/datasets/AnyModal/flickr30k/resolve/main/"
+    "data/test-00000-of-00001.parquet"
+)
+CATDOG_PARQUET_URLS = (
+    "https://hf-mirror.com/datasets/microsoft/cats_vs_dogs/resolve/main/"
+    "data/train-00000-of-00002.parquet",
+    "https://hf-mirror.com/datasets/microsoft/cats_vs_dogs/resolve/main/"
+    "data/train-00001-of-00002.parquet",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -140,7 +150,16 @@ def write_retrieval_jsonl(
             image_value = first_existing(row, ("image", "jpg", "png"))
             caption_value = first_existing(
                 row,
-                ("captions", "caption", "sentences", "texts", "text", "raw"),
+                (
+                    "captions",
+                    "caption",
+                    "sentences",
+                    "texts",
+                    "text",
+                    "raw",
+                    "original_alt_text",
+                    "alt_text",
+                ),
             )
             if image_value is None or caption_value is None:
                 raise KeyError(f"样本字段不完整，已有字段: {sorted(row.keys())}")
@@ -203,8 +222,12 @@ def prepare_flickr30k(root: Path, max_images: int) -> None:
         max_images: 最多导出图片数，0 表示全量。
     """
 
-    dataset = load_dataset("AnyModal/flickr30k", split="test")
-    write_retrieval_jsonl(dataset, root / "flickr30k", "flickr30k", max_images)
+    flickr_dir = root / "flickr30k"
+    parquet_path = flickr_dir / "raw" / "test-00000-of-00001.parquet"
+    if not parquet_path.exists():
+        download_file(FLICKR30K_PARQUET_URL, parquet_path)
+    dataset = load_dataset("parquet", data_files=str(parquet_path), split="train")
+    write_retrieval_jsonl(dataset, flickr_dir, "flickr30k", max_images)
 
 
 def prepare_coco(root: Path, max_images: int) -> None:
@@ -288,7 +311,14 @@ def prepare_catdog(root: Path, max_images: int) -> None:
         max_images: 最多导出图片数，0 表示全量。
     """
 
-    dataset = load_dataset("microsoft/cats_vs_dogs", split="train")
+    catdog_dir = root / "catdog"
+    parquet_paths: list[str] = []
+    for shard_index, url in enumerate(CATDOG_PARQUET_URLS):
+        parquet_path = catdog_dir / "raw" / f"train-{shard_index:05d}-of-00002.parquet"
+        if not parquet_path.exists():
+            download_file(url, parquet_path)
+        parquet_paths.append(str(parquet_path))
+    dataset = load_dataset("parquet", data_files=parquet_paths, split="train")
     test_dir = root / "catdog" / "test"
     count = len(dataset) if max_images <= 0 else min(len(dataset), max_images)
     for index in tqdm(range(count), desc="export catdog"):
