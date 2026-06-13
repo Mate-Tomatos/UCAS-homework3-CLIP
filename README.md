@@ -1,10 +1,28 @@
-# UCAS 作业三：CLIP 零样本图文检索
+# CLIP 零样本图文检索
 
-本仓库包含作业三的可复现实验代码：使用 CLIP 在 Flickr30k 上做零样本图文检索，并完成两个加分项：MSCOCO 图文检索、猫狗零样本分类。
+本项目使用 CLIP 进行零样本图文检索与图像分类评测，覆盖 Flickr30k 图文检索、MSCOCO 图文检索和猫狗二分类三个实验。
 
-## 本地环境
+## 模型
 
-本机已验证环境：
+评测模型使用 HuggingFace Transformers 中的 `openai/clip-vit-base-patch32`。项目同时保留 OpenAI 官方 CLIP 代码作为参考实现，位于本地 `CLIP/` 目录，当前 commit 为 `d05afc4`。
+
+重新克隆 OpenAI CLIP：
+
+```bash
+git clone https://github.com/OpenAI/CLIP.git CLIP
+```
+
+## 数据集
+
+| 实验 | 数据集 | 本地标注路径 |
+| --- | --- | --- |
+| Flickr30k 图文检索 | HuggingFace `AnyModal/flickr30k` test split | `datasets/flickr30k/annotations.jsonl` |
+| MSCOCO 图文检索 | COCO 2014 validation images and captions | `datasets/coco/annotations.jsonl` |
+| 猫狗二分类 | HuggingFace `microsoft/cats_vs_dogs` | `datasets/catdog/test` |
+
+## 环境
+
+本地已验证环境：
 
 ```bash
 /mnt/kxh/miniconda3/envs/trl/bin/python
@@ -13,27 +31,21 @@ transformers 4.57.6
 datasets 4.4.2
 ```
 
-如需重新安装依赖：
+安装依赖：
 
 ```bash
 pip install -r requirements.txt
 ```
 
-OpenAI 官方 CLIP 代码按作业要求克隆在本地 `CLIP/`，commit 为 `d05afc4`。重新克隆命令：
-
-```bash
-git clone https://github.com/OpenAI/CLIP.git CLIP
-```
-
 ## 数据准备
 
-数据集、实验结果和报告不会提交到 Git。默认导出到 `datasets/`。其中 Flickr30k 使用 HuggingFace `AnyModal/flickr30k` 的测试集；MSCOCO 使用官方 `val2014.zip` 和 `captions_val2014.json`；猫狗分类使用 HuggingFace `microsoft/cats_vs_dogs`：
+一次性准备全部数据并运行全部评测：
 
 ```bash
 PYTHON_BIN=/mnt/kxh/miniconda3/envs/trl/bin/python bash scripts/run_all.sh
 ```
 
-调试时可先小规模运行：
+小规模调试运行：
 
 ```bash
 MAX_IMAGES=64 PYTHON_BIN=/mnt/kxh/miniconda3/envs/trl/bin/python bash scripts/run_all.sh
@@ -47,9 +59,9 @@ MAX_IMAGES=64 PYTHON_BIN=/mnt/kxh/miniconda3/envs/trl/bin/python bash scripts/ru
 /mnt/kxh/miniconda3/envs/trl/bin/python scripts/prepare_datasets.py --dataset catdog
 ```
 
-## 单独评测
+## 评测命令
 
-Flickr30k 主实验：
+Flickr30k 图文检索：
 
 ```bash
 /mnt/kxh/miniconda3/envs/trl/bin/python scripts/evaluate_retrieval.py \
@@ -57,7 +69,7 @@ Flickr30k 主实验：
   --output-json results/clip_flickr30k_metrics.json
 ```
 
-MSCOCO 加分项：
+MSCOCO 5K 图文检索：
 
 ```bash
 /mnt/kxh/miniconda3/envs/trl/bin/python scripts/evaluate_retrieval.py \
@@ -66,7 +78,7 @@ MSCOCO 加分项：
   --output-json results/clip_coco_5k_metrics.json
 ```
 
-猫狗零样本分类加分项：
+猫狗零样本分类：
 
 ```bash
 /mnt/kxh/miniconda3/envs/trl/bin/python scripts/evaluate_catdog.py \
@@ -78,8 +90,12 @@ MSCOCO 加分项：
 
 图文检索输出：
 
-- `image_to_text_r1/r5/r10`
-- `text_to_image_r1/r5/r10`
+- `image_to_text_r1`
+- `image_to_text_r5`
+- `image_to_text_r10`
+- `text_to_image_r1`
+- `text_to_image_r5`
+- `text_to_image_r10`
 - `rsum`
 
 猫狗分类输出：
