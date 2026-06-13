@@ -9,10 +9,14 @@ CLIP/
 datasets/
 results/
 logs/
+docs/
 submission/*.zip
 submission/*.pdf
 *.docx
 *.pdf
+run.md
+*报告*.md
+实验运行.md
 
 # 系统和编辑器文件。
 .DS_Store
